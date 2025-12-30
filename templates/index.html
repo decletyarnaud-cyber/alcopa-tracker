@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alcopa Tracker - Véhicules Marseille/Vitrolles</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --success: #16a34a;
+            --warning: #ca8a04;
+            --danger: #dc2626;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        header p {
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+
+        .controls {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .controls select, .controls input {
+            padding: 10px 15px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-primary:disabled {
+            background: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .stat-card h3 {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .vehicle-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .vehicle-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .vehicle-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .vehicle-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .vehicle-header h3 {
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+        }
+
+        .vehicle-header .brand {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .vehicle-meta {
+            display: flex;
+            gap: 15px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+
+        .vehicle-body {
+            padding: 20px;
+        }
+
+        .ct-score {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .ct-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+        }
+
+        .ct-badge.excellent {
+            background: var(--success);
+        }
+
+        .ct-badge.good {
+            background: #22c55e;
+        }
+
+        .ct-badge.fair {
+            background: var(--warning);
+        }
+
+        .ct-badge.poor {
+            background: var(--danger);
+        }
+
+        .ct-badge.neutral {
+            background: #6366f1;
+        }
+
+        .countdown {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 8px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .countdown.normal {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .countdown.urgent {
+            background: #fef2f2;
+            color: #dc2626;
+            animation: pulse 2s infinite;
+        }
+
+        .countdown.ended {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .countdown-icon {
+            font-size: 0.9rem;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .ct-details {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .ct-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+        }
+
+        .ct-label {
+            color: var(--text-muted);
+        }
+
+        .ct-value {
+            font-weight: 600;
+        }
+
+        .ct-value.critique {
+            color: var(--danger);
+        }
+
+        .ct-value.majeure {
+            color: var(--warning);
+        }
+
+        .ct-value.mineure {
+            color: var(--success);
+        }
+
+        .vehicle-footer {
+            padding: 15px 20px;
+            background: var(--bg);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .price {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--success);
+        }
+
+        .view-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .view-link:hover {
+            text-decoration: underline;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            background: var(--card-bg);
+            border-radius: 12px;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 10px;
+        }
+
+        .sort-info {
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .vehicle-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Alcopa Tracker - Marseille/Vitrolles</h1>
+            <p>Trouvez les véhicules avec le moins de défauts au contrôle technique</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="controls">
+            <select id="sort">
+                <option value="ct_asc">Moins de défauts CT</option>
+                <option value="ct_desc">Plus de défauts CT</option>
+                <option value="price_asc">Prix croissant</option>
+                <option value="price_desc">Prix décroissant</option>
+                <option value="year_desc">Plus récent</option>
+                <option value="km_asc">Moins de km</option>
+            </select>
+            <select id="ctFilter">
+                <option value="all">Tous les véhicules</option>
+                <option value="particulier" selected>Particuliers uniquement</option>
+                <option value="favorable">CT Favorable uniquement</option>
+                <option value="no_critique">Sans défaut critique</option>
+            </select>
+            <input type="text" id="search" placeholder="Rechercher marque/modèle...">
+            <button class="btn btn-primary" id="scrapeBtn" onclick="startScrape()">
+                Actualiser les données
+            </button>
+        </div>
+
+        <div class="sort-info">
+            Les véhicules sont triés par défauts au contrôle technique : Critiques (x10) + Majeurs (x5) + Mineurs (x1)
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <h3>Véhicules</h3>
+                <div class="value" id="totalCount">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Sans défaut critique</h3>
+                <div class="value" id="cleanCount">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Dernière MAJ</h3>
+                <div class="value" id="lastUpdate" style="font-size: 1rem;">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Prochain scrape</h3>
+                <div class="value" style="font-size: 1rem;">06:00 (auto)</div>
+            </div>
+        </div>
+
+        <div id="vehicleContainer">
+            <div class="empty-state">
+                <h3>Aucun véhicule chargé</h3>
+                <p>Cliquez sur "Actualiser les données" pour charger les véhicules depuis Alcopa Auction</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let vehicles = [];
+
+        async function loadVehicles() {
+            try {
+                const response = await fetch('/api/vehicles');
+                const data = await response.json();
+                vehicles = data.vehicles || [];
+                updateStats(data);
+                renderVehicles();
+            } catch (error) {
+                console.error('Error loading vehicles:', error);
+            }
+        }
+
+        async function startScrape() {
+            const btn = document.getElementById('scrapeBtn');
+            const container = document.getElementById('vehicleContainer');
+
+            btn.disabled = true;
+            btn.textContent = 'Chargement...';
+            container.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Récupération des véhicules Marseille en cours...</p>
+                    <p style="font-size: 0.9rem; margin-top: 10px;">Cela peut prendre quelques minutes</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch('/api/scrape');
+                const data = await response.json();
+
+                if (data.success) {
+                    vehicles = data.vehicles || [];
+                    updateStats({
+                        count: data.count,
+                        last_updated: new Date().toISOString()
+                    });
+                    renderVehicles();
+                } else {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <h3>Erreur lors du chargement</h3>
+                            <p>${data.error || 'Une erreur est survenue'}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>Erreur de connexion</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Actualiser les données';
+            }
+        }
+
+        function updateStats(data) {
+            document.getElementById('totalCount').textContent = data.count || 0;
+
+            const cleanCount = vehicles.filter(v =>
+                (v.ct_defects?.critiques || 0) === 0
+            ).length;
+            document.getElementById('cleanCount').textContent = cleanCount;
+
+            if (data.last_updated) {
+                const date = new Date(data.last_updated);
+                document.getElementById('lastUpdate').textContent =
+                    date.toLocaleDateString('fr-FR') + ' ' + date.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
+            }
+        }
+
+        function renderVehicles() {
+            const container = document.getElementById('vehicleContainer');
+            const searchTerm = document.getElementById('search').value.toLowerCase();
+            const sortBy = document.getElementById('sort').value;
+            const ctFilter = document.getElementById('ctFilter').value;
+
+            let filtered = vehicles.filter(v => {
+                // Search filter
+                if (searchTerm) {
+                    const title = (v.title || '').toLowerCase();
+                    const brand = (v.brand || '').toLowerCase();
+                    const model = (v.model || '').toLowerCase();
+                    if (!title.includes(searchTerm) && !brand.includes(searchTerm) && !model.includes(searchTerm)) {
+                        return false;
+                    }
+                }
+
+                // CT filter
+                switch (ctFilter) {
+                    case 'particulier':
+                        return !v.is_professional_only;
+                    case 'favorable':
+                        return v.ct_result === 'favorable';
+                    case 'no_critique':
+                        return (v.ct_defects?.critiques || 0) === 0;
+                    default:
+                        return true;
+                }
+            });
+
+            // Sort
+            filtered.sort((a, b) => {
+                switch (sortBy) {
+                    case 'ct_asc':
+                        return (a.ct_defects?.total || 0) - (b.ct_defects?.total || 0);
+                    case 'ct_desc':
+                        return (b.ct_defects?.total || 0) - (a.ct_defects?.total || 0);
+                    case 'price_asc':
+                        return (parseInt(a.price) || 99999) - (parseInt(b.price) || 99999);
+                    case 'price_desc':
+                        return (parseInt(b.price) || 0) - (parseInt(a.price) || 0);
+                    case 'year_desc':
+                        return (parseInt(b.year) || 0) - (parseInt(a.year) || 0);
+                    case 'km_asc':
+                        return (parseInt(a.mileage) || 999999) - (parseInt(b.mileage) || 999999);
+                    default:
+                        return 0;
+                }
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>Aucun véhicule trouvé</h3>
+                        <p>${vehicles.length === 0 ? 'Cliquez sur "Actualiser les données" pour charger les véhicules' : 'Modifiez vos critères de recherche'}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `<div class="vehicle-grid">${filtered.map(renderVehicleCard).join('')}</div>`;
+        }
+
+        function formatTimeRemaining(saleEndDate) {
+            if (!saleEndDate) return null;
+
+            // Parse French date format: "26 décembre 2025 13:00"
+            const months = {
+                'janvier': 0, 'février': 1, 'mars': 2, 'avril': 3, 'mai': 4, 'juin': 5,
+                'juillet': 6, 'août': 7, 'septembre': 8, 'octobre': 9, 'novembre': 10, 'décembre': 11
+            };
+
+            const match = saleEndDate.match(/(\d{1,2})\s+(\w+)\s+(\d{4})\s+(\d{1,2}):(\d{2})/);
+            if (!match) return null;
+
+            const day = parseInt(match[1]);
+            const month = months[match[2].toLowerCase()];
+            const year = parseInt(match[3]);
+            const hour = parseInt(match[4]);
+            const minute = parseInt(match[5]);
+
+            if (month === undefined) return null;
+
+            const endDate = new Date(year, month, day, hour, minute);
+            const now = new Date();
+            const diff = endDate - now;
+
+            if (diff <= 0) return { text: 'Terminée', class: 'ended', urgent: false };
+
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+            let text = '';
+            if (days > 0) {
+                text = `${days}j ${hours}h`;
+            } else if (hours > 0) {
+                text = `${hours}h ${minutes}m`;
+            } else {
+                text = `${minutes}m`;
+            }
+
+            const urgent = days === 0 && hours < 6;
+            return { text, class: urgent ? 'urgent' : 'normal', urgent };
+        }
+
+        function renderVehicleCard(vehicle) {
+            const ct = vehicle.ct_defects || {critiques: 0, majeures: 0, mineures: 0, total: 0};
+            const score = ct.total || 0;
+            const isPro = vehicle.is_professional_only;
+            const timeRemaining = formatTimeRemaining(vehicle.sale_end_date);
+
+            const ctType = vehicle.ct_type || 'standard';
+            let badgeClass = 'excellent';
+
+            // For voluntary controls or unreadable PDFs, use neutral color
+            if (ctType === 'volontaire' || ctType === 'non_lisible') {
+                badgeClass = 'neutral';
+            } else if (isPro || score > 30) {
+                badgeClass = 'poor';
+            } else if (score > 15) {
+                badgeClass = 'fair';
+            } else if (score > 5) {
+                badgeClass = 'good';
+            }
+
+            let ctResultText = '';
+            let ctResultColor = '';
+
+            // Handle different CT types (ctType already declared above)
+            if (ctType === 'volontaire') {
+                ctResultText = 'Contrôle Volontaire (pré-vente)';
+                ctResultColor = '#6366f1'; // Purple
+            } else if (ctType === 'non_lisible') {
+                ctResultText = 'CT non lisible (PDF scanné)';
+                ctResultColor = 'var(--text-muted)';
+            } else if (vehicle.ct_result === 'favorable') {
+                ctResultText = 'CT Favorable';
+                ctResultColor = 'var(--success)';
+            } else if (vehicle.ct_result === 'majeure') {
+                ctResultText = 'CT Défavorable (majeur)';
+                ctResultColor = 'var(--warning)';
+            } else if (vehicle.ct_result === 'critique') {
+                ctResultText = 'CT Défavorable (critique)';
+                ctResultColor = 'var(--danger)';
+            }
+
+            const metaItems = [];
+            if (vehicle.year) metaItems.push(vehicle.year);
+            if (vehicle.mileage) metaItems.push(parseInt(vehicle.mileage).toLocaleString('fr-FR') + ' km');
+            if (vehicle.fuel) metaItems.push(vehicle.fuel);
+            if (vehicle.transmission) metaItems.push(vehicle.transmission);
+
+            return `
+                <div class="vehicle-card" style="${isPro ? 'opacity: 0.7; border: 2px solid var(--danger);' : ''}">
+                    ${isPro ? '<div style="background: var(--danger); color: white; padding: 5px 10px; font-size: 0.8rem; font-weight: 600;">RÉSERVÉ AUX PROFESSIONNELS</div>' : ''}
+                    <div class="vehicle-header">
+                        <h3><span class="brand">${vehicle.brand || 'N/A'}</span> ${vehicle.model || ''}</h3>
+                        <div class="vehicle-meta">
+                            ${metaItems.map(item => `<span>${item}</span>`).join('')}
+                        </div>
+                        ${ctResultText ? `<div style="margin-top: 8px; font-size: 0.85rem; font-weight: 600; color: ${ctResultColor};">${ctResultText}</div>` : ''}
+                        ${timeRemaining ? `
+                            <div class="countdown ${timeRemaining.class}">
+                                <span class="countdown-icon">⏱</span>
+                                <span class="countdown-text">Fin: ${timeRemaining.text}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="vehicle-body">
+                        <div class="ct-score">
+                            <div class="ct-badge ${badgeClass}">${(ctType === 'volontaire' || ctType === 'non_lisible') ? '?' : score}</div>
+                            <div class="ct-details">
+                                ${(ctType === 'volontaire' || ctType === 'non_lisible') ? `
+                                    <div style="font-size: 0.85rem; color: var(--text-muted);">
+                                        ${ctType === 'volontaire' ? 'Pas de CT officiel' : 'Défauts non lisibles'}
+                                    </div>
+                                ` : `
+                                    <div class="ct-row">
+                                        <span class="ct-label">Critiques</span>
+                                        <span class="ct-value critique">${ct.critiques || 0}</span>
+                                    </div>
+                                    <div class="ct-row">
+                                        <span class="ct-label">Majeurs</span>
+                                        <span class="ct-value majeure">${ct.majeures || 0}</span>
+                                    </div>
+                                    <div class="ct-row">
+                                        <span class="ct-label">Mineurs</span>
+                                        <span class="ct-value mineure">${ct.mineures || 0}</span>
+                                    </div>
+                                `}
+                            </div>
+                        </div>
+                        ${vehicle.ct_details && vehicle.ct_details.length > 0 ? `
+                            <details style="margin-top: 10px; font-size: 0.8rem;">
+                                <summary style="cursor: pointer; color: var(--primary);">Voir les défauts (${vehicle.ct_details.length})</summary>
+                                <ul style="margin-top: 8px; padding-left: 20px; color: var(--text-muted);">
+                                    ${vehicle.ct_details.map(d => `<li>${d}</li>`).join('')}
+                                </ul>
+                            </details>
+                        ` : ''}
+                        ${vehicle.notes && vehicle.notes.length > 0 && !isPro ? `
+                            <div style="margin-top: 10px; padding: 8px; background: #fef3c7; border-radius: 6px; font-size: 0.85rem;">
+                                ${vehicle.notes.join(', ')}
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="vehicle-footer">
+                        <span class="price">${vehicle.price ? parseInt(vehicle.price).toLocaleString('fr-FR') + ' €' : 'Prix N/C'}</span>
+                        <div style="display: flex; gap: 10px;">
+                            ${vehicle.ct_pdf_url ? `<a href="${vehicle.ct_pdf_url}" target="_blank" class="view-link" style="color: var(--success);">CT PDF</a>` : ''}
+                            ${vehicle.url ? `<a href="${vehicle.url}" target="_blank" class="view-link">Voir</a>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Event listeners
+        document.getElementById('search').addEventListener('input', renderVehicles);
+        document.getElementById('sort').addEventListener('change', renderVehicles);
+        document.getElementById('ctFilter').addEventListener('change', renderVehicles);
+
+        // Initial load
+        loadVehicles();
+    </script>
+</body>
+</html>

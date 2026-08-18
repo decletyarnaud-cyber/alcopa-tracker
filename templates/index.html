@@ -144,6 +144,31 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
 
+        /* Flash sale (vente en ligne) styling - orange border */
+        .vehicle-card.flash-sale {
+            border: 3px solid #f97316;
+            box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
+        }
+
+        .vehicle-card.flash-sale:hover {
+            box-shadow: 0 4px 16px rgba(249, 115, 22, 0.4);
+        }
+
+        .flash-badge {
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            color: white;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .flash-badge .flash-icon {
+            font-size: 1rem;
+        }
+
         .vehicle-header {
             padding: 20px;
             border-bottom: 1px solid var(--border);
@@ -208,6 +233,28 @@
 
         .ct-badge.neutral {
             background: #6366f1;
+        }
+
+        /* CT non lisible styling */
+        .vehicle-card.ct-unreadable {
+            opacity: 0.7;
+            border: 2px dashed #9ca3af;
+            background: #f9fafb;
+        }
+
+        .vehicle-card.ct-unreadable:hover {
+            opacity: 0.85;
+        }
+
+        .ct-unreadable-banner {
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: white;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .countdown {
@@ -342,6 +389,108 @@
             font-size: 0.9rem;
         }
 
+        /* Event/Sale Group Headers */
+        .sale-group {
+            margin-bottom: 30px;
+        }
+
+        .sale-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .sale-header.flash {
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            color: white;
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);
+        }
+
+        .sale-header.salle {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .sale-header .sale-icon {
+            font-size: 1.5rem;
+        }
+
+        .sale-header .sale-info {
+            flex: 1;
+        }
+
+        .sale-header .sale-title {
+            font-size: 1.1rem;
+            margin-bottom: 2px;
+        }
+
+        .sale-header .sale-meta {
+            font-size: 0.85rem;
+            opacity: 0.9;
+            font-weight: 400;
+        }
+
+        .sale-header .sale-count {
+            background: rgba(255,255,255,0.2);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+
+        .sale-vehicles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        /* Market price styling */
+        .market-price-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: #f1f5f9;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .market-badge {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+
+        .market-badge.na {
+            background: #e2e8f0;
+            color: #64748b;
+        }
+
+        .market-diff {
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.8rem;
+        }
+
+        .market-diff.great-deal { background: #14532d; color: white; }
+        .market-diff.good-deal { background: #16a34a; color: white; }
+        .market-diff.fair-price { background: #e2e8f0; color: #475569; }
+        .market-diff.expensive { background: #f97316; color: white; }
+        .market-diff.very-expensive { background: #dc2626; color: white; }
+
+        .market-tooltip {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
         @media (max-width: 768px) {
             .controls {
                 flex-direction: column;
@@ -371,12 +520,32 @@
                 <option value="price_desc">Prix décroissant</option>
                 <option value="year_desc">Plus récent</option>
                 <option value="km_asc">Moins de km</option>
+                <option value="deal_best">Meilleur deal (vs marché)</option>
             </select>
             <select id="ctFilter">
                 <option value="all">Tous les véhicules</option>
                 <option value="particulier" selected>Particuliers uniquement</option>
                 <option value="favorable">CT Favorable uniquement</option>
                 <option value="no_critique">Sans défaut critique</option>
+            </select>
+            <select id="vehicleTypeFilter">
+                <option value="all">Tous les véhicules</option>
+                <option value="polo_golf">Volkswagen Polo/Golf uniquement</option>
+                <option value="van">Camionettes uniquement</option>
+            </select>
+            <select id="saleTypeFilter">
+                <option value="all">Toutes les ventes</option>
+                <option value="flash">Ventes flash uniquement</option>
+                <option value="salle">Ventes en salle uniquement</option>
+            </select>
+            <select id="saleIdFilter">
+                <option value="all">Tous les événements</option>
+                <!-- Populated dynamically -->
+            </select>
+            <select id="ctReadableFilter">
+                <option value="all">Tous les CT</option>
+                <option value="readable" selected>CT lisibles uniquement</option>
+                <option value="unreadable">CT non lisibles</option>
             </select>
             <input type="text" id="search" placeholder="Rechercher marque/modèle...">
             <button class="btn btn-primary" id="scrapeBtn" onclick="startScrape()">
@@ -394,16 +563,21 @@
                 <div class="value" id="totalCount">0</div>
             </div>
             <div class="stat-card">
+                <h3>Événements</h3>
+                <div class="value" id="eventCount">0</div>
+                <div id="eventDetails" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;"></div>
+            </div>
+            <div class="stat-card">
+                <h3>Ventes Flash</h3>
+                <div class="value" id="flashCount" style="color: #f97316;">0</div>
+            </div>
+            <div class="stat-card">
                 <h3>Sans défaut critique</h3>
                 <div class="value" id="cleanCount">0</div>
             </div>
             <div class="stat-card">
                 <h3>Dernière MAJ</h3>
                 <div class="value" id="lastUpdate" style="font-size: 1rem;">-</div>
-            </div>
-            <div class="stat-card">
-                <h3>Prochain scrape</h3>
-                <div class="value" style="font-size: 1rem;">06:00 (auto)</div>
             </div>
         </div>
 
@@ -484,10 +658,76 @@
             ).length;
             document.getElementById('cleanCount').textContent = cleanCount;
 
+            // Count flash vehicles
+            const flashCount = vehicles.filter(v => v.sale_type === 'flash').length;
+            document.getElementById('flashCount').textContent = flashCount;
+
+            // Count unique events/sales
+            const saleIds = new Set(vehicles.map(v => v.sale_id || 'unknown'));
+            const flashSaleIds = new Set(vehicles.filter(v => v.sale_type === 'flash').map(v => v.sale_id));
+            const salleSaleIds = new Set(vehicles.filter(v => v.sale_type !== 'flash').map(v => v.sale_id));
+
+            document.getElementById('eventCount').textContent = saleIds.size;
+            document.getElementById('eventDetails').innerHTML =
+                `<span style="color: #f97316;">⚡ ${flashSaleIds.size} flash</span> • <span style="color: #2563eb;">🏛️ ${salleSaleIds.size} salle</span>`;
+
             if (data.last_updated) {
                 const date = new Date(data.last_updated);
                 document.getElementById('lastUpdate').textContent =
                     date.toLocaleDateString('fr-FR') + ' ' + date.toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
+            }
+
+            // Populate sale filter dropdown
+            populateSaleFilter();
+        }
+
+        function populateSaleFilter() {
+            const saleIdFilter = document.getElementById('saleIdFilter');
+            const currentValue = saleIdFilter.value;
+
+            // Build unique sales map
+            const salesMap = new Map();
+            vehicles.forEach(v => {
+                const saleId = v.sale_id || 'unknown';
+                if (!salesMap.has(saleId)) {
+                    salesMap.set(saleId, {
+                        id: saleId,
+                        name: v.sale_name || 'Vente',
+                        date: v.sale_end_date || '',
+                        type: v.sale_type || 'salle',
+                        count: 0
+                    });
+                }
+                salesMap.get(saleId).count++;
+            });
+
+            // Clear and rebuild options
+            saleIdFilter.innerHTML = '<option value="all">Tous les événements</option>';
+
+            // Sort by date then by type (flash first)
+            const salesArray = Array.from(salesMap.values()).sort((a, b) => {
+                // Compare dates if available
+                if (a.date && b.date && a.date !== b.date) {
+                    return a.date.localeCompare(b.date);
+                }
+                // Flash first
+                if (a.type === 'flash' && b.type !== 'flash') return -1;
+                if (a.type !== 'flash' && b.type === 'flash') return 1;
+                return 0;
+            });
+
+            salesArray.forEach(sale => {
+                const icon = sale.type === 'flash' ? '⚡' : '🏛️';
+                const shortName = sale.name.length > 30 ? sale.name.substring(0, 30) + '...' : sale.name;
+                const option = document.createElement('option');
+                option.value = sale.id;
+                option.textContent = `${icon} ${shortName} (${sale.count})`;
+                saleIdFilter.appendChild(option);
+            });
+
+            // Restore previous selection if still valid
+            if (currentValue && salesMap.has(currentValue)) {
+                saleIdFilter.value = currentValue;
             }
         }
 
@@ -496,6 +736,10 @@
             const searchTerm = document.getElementById('search').value.toLowerCase();
             const sortBy = document.getElementById('sort').value;
             const ctFilter = document.getElementById('ctFilter').value;
+            const vehicleTypeFilter = document.getElementById('vehicleTypeFilter').value;
+            const saleTypeFilter = document.getElementById('saleTypeFilter').value;
+            const saleIdFilter = document.getElementById('saleIdFilter').value;
+            const ctReadableFilter = document.getElementById('ctReadableFilter').value;
 
             let filtered = vehicles.filter(v => {
                 // Search filter
@@ -506,6 +750,79 @@
                     if (!title.includes(searchTerm) && !brand.includes(searchTerm) && !model.includes(searchTerm)) {
                         return false;
                     }
+                }
+
+                // Vehicle type filter
+                if (vehicleTypeFilter === 'polo_golf') {
+                    // Check if it's a Volkswagen Polo or Golf
+                    const isVW = (v.brand || '').toLowerCase() === 'volkswagen';
+                    const isPolo = (v.model || '').toLowerCase().includes('polo');
+                    const isGolf = (v.model || '').toLowerCase().includes('golf');
+                    if (!(isVW && (isPolo || isGolf))) {
+                        return false;
+                    }
+                } else if (vehicleTypeFilter === 'van') {
+                    // Vrais utilitaires / fourgons / fourgonnettes (sans sièges arrière)
+                    const vanModels = [
+                        // Renault
+                        'kangoo', 'master', 'trafic', 'maxity',
+                        // Peugeot
+                        'partner', 'expert', 'boxer', 'bipper',
+                        // Citroën
+                        'berlingo', 'jumpy', 'jumper', 'nemo', 'dispatch',
+                        // Ford
+                        'transit', 'transit connect', 'transit custom', 'transit courier',
+                        // Volkswagen
+                        'caddy', 'transporter', 'crafter', 'caravelle',
+                        // Mercedes
+                        'vito', 'sprinter', 'citan',
+                        // Fiat
+                        'doblo', 'ducato', 'scudo', 'fiorino', 'talento',
+                        // Opel / Vauxhall
+                        'combo', 'vivaro', 'movano',
+                        // Nissan
+                        'nv200', 'nv300', 'nv400', 'interstar', 'primastar',
+                        // Toyota
+                        'proace', 'proace city',
+                        // Iveco
+                        'daily',
+                        // MAN
+                        'tge'
+                    ];
+                    // Mots-clés qui indiquent un utilitaire dans le titre ou le modèle
+                    const vanKeywords = ['fourgon', 'utilitaire', 'cargo', 'van', 'combi', 'chassis', 'plateau', 'benne', 'frigorifique', 'isotherme', 'pick-up', 'pickup'];
+
+                    const modelLower = (v.model || '').toLowerCase();
+                    const titleLower = (v.title || '').toLowerCase();
+
+                    const isVan = vanModels.some(m => modelLower.includes(m) || titleLower.includes(m))
+                        || vanKeywords.some(k => modelLower.includes(k) || titleLower.includes(k));
+                    if (!isVan) {
+                        return false;
+                    }
+                }
+
+                // Sale type filter (flash/salle)
+                if (saleTypeFilter === 'flash' && v.sale_type !== 'flash') {
+                    return false;
+                }
+                if (saleTypeFilter === 'salle' && v.sale_type === 'flash') {
+                    return false;
+                }
+
+                // Sale ID filter (specific event)
+                if (saleIdFilter !== 'all' && (v.sale_id || 'unknown') !== saleIdFilter) {
+                    return false;
+                }
+
+                // CT readable filter
+                const ctType = v.ct_type || 'standard';
+                const isCtUnreadable = (ctType === 'non_lisible');
+                if (ctReadableFilter === 'readable' && isCtUnreadable) {
+                    return false;
+                }
+                if (ctReadableFilter === 'unreadable' && !isCtUnreadable) {
+                    return false;
                 }
 
                 // CT filter
@@ -521,8 +838,16 @@
                 }
             });
 
-            // Sort
+            // Sort - with unreadable CT at the end
             filtered.sort((a, b) => {
+                // First: put unreadable CT at the end
+                const aUnreadable = (a.ct_type === 'non_lisible') ? 1 : 0;
+                const bUnreadable = (b.ct_type === 'non_lisible') ? 1 : 0;
+                if (aUnreadable !== bUnreadable) {
+                    return aUnreadable - bUnreadable;
+                }
+
+                // Then apply selected sort
                 switch (sortBy) {
                     case 'ct_asc':
                         return (a.ct_defects?.total || 0) - (b.ct_defects?.total || 0);
@@ -536,6 +861,8 @@
                         return (parseInt(b.year) || 0) - (parseInt(a.year) || 0);
                     case 'km_asc':
                         return (parseInt(a.mileage) || 999999) - (parseInt(b.mileage) || 999999);
+                    case 'deal_best':
+                        return (a.market_diff_pct ?? 999) - (b.market_diff_pct ?? 999);
                     default:
                         return 0;
                 }
@@ -551,7 +878,54 @@
                 return;
             }
 
-            container.innerHTML = `<div class="vehicle-grid">${filtered.map(renderVehicleCard).join('')}</div>`;
+            // Group vehicles by sale event
+            const salesMap = new Map();
+            filtered.forEach(v => {
+                const saleId = v.sale_id || 'unknown';
+                if (!salesMap.has(saleId)) {
+                    salesMap.set(saleId, {
+                        id: saleId,
+                        name: v.sale_name || 'Vente',
+                        type: v.sale_type || 'salle',
+                        date: v.sale_end_date || '',
+                        vehicles: []
+                    });
+                }
+                salesMap.get(saleId).vehicles.push(v);
+            });
+
+            // Sort sales: flash first, then by date
+            const salesArray = Array.from(salesMap.values()).sort((a, b) => {
+                if (a.type === 'flash' && b.type !== 'flash') return -1;
+                if (a.type !== 'flash' && b.type === 'flash') return 1;
+                return 0;
+            });
+
+            // Render grouped by sale
+            let html = '';
+            salesArray.forEach(sale => {
+                const isFlash = sale.type === 'flash';
+                const icon = isFlash ? '⚡' : '🏛️';
+                const typeLabel = isFlash ? 'VENTE FLASH EN LIGNE' : 'VENTE EN SALLE';
+
+                html += `
+                    <div class="sale-group">
+                        <div class="sale-header ${sale.type}">
+                            <span class="sale-icon">${icon}</span>
+                            <div class="sale-info">
+                                <div class="sale-title">${typeLabel}</div>
+                                <div class="sale-meta">${sale.name}${sale.date ? ' • ' + sale.date : ''}</div>
+                            </div>
+                            <div class="sale-count">${sale.vehicles.length} véhicule${sale.vehicles.length > 1 ? 's' : ''}</div>
+                        </div>
+                        <div class="sale-vehicles-grid">
+                            ${sale.vehicles.map(renderVehicleCard).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
         }
 
         function formatTimeRemaining(saleEndDate) {
@@ -602,12 +976,14 @@
             const score = ct.total || 0;
             const isPro = vehicle.is_professional_only;
             const timeRemaining = formatTimeRemaining(vehicle.sale_end_date);
+            const isFlash = vehicle.sale_type === 'flash';
 
             const ctType = vehicle.ct_type || 'standard';
+            const isCtUnreadable = (ctType === 'volontaire' || ctType === 'non_lisible');
             let badgeClass = 'excellent';
 
             // For voluntary controls or unreadable PDFs, use neutral color
-            if (ctType === 'volontaire' || ctType === 'non_lisible') {
+            if (isCtUnreadable) {
                 badgeClass = 'neutral';
             } else if (isPro || score > 30) {
                 badgeClass = 'poor';
@@ -622,8 +998,20 @@
 
             // Handle different CT types (ctType already declared above)
             if (ctType === 'volontaire') {
-                ctResultText = 'Contrôle Volontaire (pré-vente)';
-                ctResultColor = '#6366f1'; // Purple
+                // Volontaire with parsed defects - show result like standard CT
+                if (vehicle.ct_result === 'critique') {
+                    ctResultText = 'Contrôle Volontaire - Critique';
+                    ctResultColor = 'var(--danger)';
+                } else if (vehicle.ct_result === 'majeure') {
+                    ctResultText = 'Contrôle Volontaire - Défauts majeurs';
+                    ctResultColor = 'var(--warning)';
+                } else if (score === 0) {
+                    ctResultText = 'Contrôle Volontaire - OK';
+                    ctResultColor = 'var(--success)';
+                } else {
+                    ctResultText = 'Contrôle Volontaire';
+                    ctResultColor = '#6366f1';
+                }
             } else if (ctType === 'non_lisible') {
                 ctResultText = 'CT non lisible (PDF scanné)';
                 ctResultColor = 'var(--text-muted)';
@@ -644,8 +1032,27 @@
             if (vehicle.fuel) metaItems.push(vehicle.fuel);
             if (vehicle.transmission) metaItems.push(vehicle.transmission);
 
+            // Determine card classes
+            let cardClasses = 'vehicle-card';
+            if (isFlash) cardClasses += ' flash-sale';
+            if (isCtUnreadable && !isPro) cardClasses += ' ct-unreadable';
+
+            // Determine card styling based on type
+            let cardStyle = '';
+            if (isPro) {
+                cardStyle = 'opacity: 0.7; border: 2px solid var(--danger);';
+            }
+
+            // CT unreadable banner
+            let ctUnreadableBanner = '';
+            if (isCtUnreadable && !isPro) {
+                ctUnreadableBanner = `<div class="ct-unreadable-banner">⚠️ CT NON LISIBLE (PDF scanné)</div>`;
+            }
+
             return `
-                <div class="vehicle-card" style="${isPro ? 'opacity: 0.7; border: 2px solid var(--danger);' : ''}">
+                <div class="${cardClasses}" style="${cardStyle}">
+                    ${ctUnreadableBanner}
+                    ${isFlash ? '<div class="flash-badge"><span class="flash-icon">⚡</span> VENTE FLASH EN LIGNE</div>' : ''}
                     ${isPro ? '<div style="background: var(--danger); color: white; padding: 5px 10px; font-size: 0.8rem; font-weight: 600;">RÉSERVÉ AUX PROFESSIONNELS</div>' : ''}
                     <div class="vehicle-header">
                         <h3><span class="brand">${vehicle.brand || 'N/A'}</span> ${vehicle.model || ''}</h3>
@@ -662,11 +1069,11 @@
                     </div>
                     <div class="vehicle-body">
                         <div class="ct-score">
-                            <div class="ct-badge ${badgeClass}">${(ctType === 'volontaire' || ctType === 'non_lisible') ? '?' : score}</div>
+                            <div class="ct-badge ${badgeClass}">${ctType === 'non_lisible' ? '?' : score}</div>
                             <div class="ct-details">
-                                ${(ctType === 'volontaire' || ctType === 'non_lisible') ? `
+                                ${ctType === 'non_lisible' ? `
                                     <div style="font-size: 0.85rem; color: var(--text-muted);">
-                                        ${ctType === 'volontaire' ? 'Pas de CT officiel' : 'Défauts non lisibles'}
+                                        Défauts non lisibles
                                     </div>
                                 ` : `
                                     <div class="ct-row">
@@ -698,6 +1105,7 @@
                             </div>
                         ` : ''}
                     </div>
+                    ${renderMarketPrice(vehicle)}
                     <div class="vehicle-footer">
                         <span class="price">${vehicle.price ? parseInt(vehicle.price).toLocaleString('fr-FR') + ' €' : 'Prix N/C'}</span>
                         <div style="display: flex; gap: 10px;">
@@ -709,10 +1117,42 @@
             `;
         }
 
+        function renderMarketPrice(vehicle) {
+            if (!vehicle.market_price) {
+                return `<div class="market-price-section"><span class="market-badge na">Prix marché N/A</span></div>`;
+            }
+
+            const marketPrice = parseInt(vehicle.market_price).toLocaleString('fr-FR');
+            const diff = vehicle.market_diff_pct;
+
+            let diffClass = 'fair-price';
+            let diffLabel = '';
+            if (diff !== null && diff !== undefined) {
+                if (diff < -20) { diffClass = 'great-deal'; diffLabel = diff + '%'; }
+                else if (diff < -5) { diffClass = 'good-deal'; diffLabel = diff + '%'; }
+                else if (diff <= 5) { diffClass = 'fair-price'; diffLabel = (diff > 0 ? '+' : '') + diff + '%'; }
+                else if (diff <= 20) { diffClass = 'expensive'; diffLabel = '+' + diff + '%'; }
+                else { diffClass = 'very-expensive'; diffLabel = '+' + diff + '%'; }
+            }
+
+            return `
+                <div class="market-price-section">
+                    <span style="color: var(--text-muted);">Marché :</span>
+                    <strong>${marketPrice} €</strong>
+                    ${diff !== null && diff !== undefined ? `<span class="market-diff ${diffClass}">${diffLabel}</span>` : ''}
+                    <span class="market-tooltip" title="${vehicle.market_sources || ''}">${vehicle.market_count || 0} annonces</span>
+                </div>
+            `;
+        }
+
         // Event listeners
         document.getElementById('search').addEventListener('input', renderVehicles);
         document.getElementById('sort').addEventListener('change', renderVehicles);
         document.getElementById('ctFilter').addEventListener('change', renderVehicles);
+        document.getElementById('vehicleTypeFilter').addEventListener('change', renderVehicles);
+        document.getElementById('saleTypeFilter').addEventListener('change', renderVehicles);
+        document.getElementById('saleIdFilter').addEventListener('change', renderVehicles);
+        document.getElementById('ctReadableFilter').addEventListener('change', renderVehicles);
 
         // Initial load
         loadVehicles();

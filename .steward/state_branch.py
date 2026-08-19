@@ -27,7 +27,21 @@ import datetime
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+if str(HERE) not in sys.path:
+    sys.path.insert(0, str(HERE))
+# Capture-time OWNER stamp (T-1 / SA-24). This is the SECOND decisions.jsonl store — the one that
+# lives on the GHA state branch, inside the tenant's own repo — and its rows are read back into our
+# decision logic and mirrored (best-effort) into the machine store, so an unstamped row here arrives
+# in our plane with no owner. Imported fail-open: a stripped install degrades to unstamped rows
+# (which read UNSET — the honest answer), never to a lost decision.
+try:
+    import tenant as _tenant  # noqa: E402
+except Exception:                                        # pragma: no cover — defensive
+    _tenant = None
 
 DEFAULT_BRANCH = "steward-state"
 SEED_FILES = ("cursor.json", "handled.jsonl", "ledger.jsonl")
@@ -78,6 +92,12 @@ class StateBranch:
             self._git("config", "user.name", "the-steward")
 
         if self.remote_url:
+            # Reconcile the remote URL every ensure(). `remote add` only runs on fresh init, so a store
+            # created by an EARLIER sync with a stale url (a first attempt used git@github.com/SSH and
+            # failed; a later call passes HTTPS) would keep the dead remote and every fetch keep failing.
+            # set-url fixes an existing store; add covers a missing origin. [ade 2026-08-19]
+            if self._git("remote", "set-url", self.remote, self.remote_url, check=False).returncode != 0:
+                self._git("remote", "add", self.remote, self.remote_url, check=False)
             self._git("fetch", "-q", self.remote, check=False)
 
         if self.remote_url and self._remote_has_branch():
@@ -202,8 +222,25 @@ class StateBranch:
         return out
 
     def record_decision(self, sig: str, decision: str, **meta) -> None:
+        """Append a human decision to the state branch's own decisions.jsonl.
+
+        The `tenant` stamp is T-1's rule at this second write point (SA-24): the machine store is
+        NOT a superset of this one — `gha_sync` mirrors branch → machine best-effort, so a mirror
+        hiccup leaves a decision that exists only here. Absence writes `UNSET` (unpoolable by
+        definition) rather than omitting the key, and a caller that set `tenant` deliberately is
+        never overwritten. Fail-open: a resolver that cannot answer costs the label, never the row.
+
+        The id itself is the operator's explicit, opaque label (`tenant.py` rule 1) — this file is
+        written into the tenant's own git history permanently, so nothing about the pool (enrolment
+        order, cardinality) may be derived into it here."""
+        row = {"sig": sig, "decision": decision, "at": _now(), **meta}
+        if _tenant is not None and "tenant" not in row:
+            try:
+                _tenant.stamp(row)
+            except Exception:                            # pragma: no cover — stamp is itself fail-open
+                pass
         with (self.dir / "decisions.jsonl").open("a") as f:
-            f.write(json.dumps({"sig": sig, "decision": decision, "at": _now(), **meta}) + "\n")
+            f.write(json.dumps(row) + "\n")
 
     def ledger(self) -> list[dict]:
         return self._read_jsonl("ledger.jsonl")

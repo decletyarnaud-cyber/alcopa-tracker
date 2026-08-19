@@ -14,7 +14,12 @@ name: steward
 on:
   schedule:
     - cron: "55 3 * * *"          # from cadence tier (docs/68); best-effort (cursor design tolerates drift)
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      review:
+        description: "Start your morning review (digest in the run summary; drive it from your phone if a claude.ai token is set)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write            # commit steward-state + push fix branches (never main)
@@ -26,6 +31,8 @@ concurrency:
 
 jobs:
   watch:
+    # A review dispatch (review=true) is the GUI-down morning digest — it must NOT also run the loop.
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.review) }}
     runs-on: ubuntu-latest
     timeout-minutes: 8   # a run_cmd that is a SERVER never returns; never burn the 360-min default
     outputs:
@@ -102,3 +109,33 @@ jobs:
           # ephemeral sandboxed runner: let the investigate/fix agents edit + run tests headlessly
           ST_CLAUDE_ARGS: "--dangerously-skip-permissions"
         run: python .steward/execute.py
+
+  review:
+    # The GUI-DOWN half of the morning digest: open the review locally in a terminal when the machine's
+    # GUI is up, OTHERWISE drive it from GHA. Runs ONLY on a review=true dispatch (tap "Run workflow" in
+    # the GitHub mobile app), so no runner is ever held on a schedule. Reads the findings off
+    # steward-state, writes your digest to THIS run's summary (readable on your phone), and — if a
+    # claude.ai token secret is present — opens a remote-control session you drive from your phone.
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.review }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: cache the claude CLI download
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-claude-code-v1
+      - name: install claude CLI
+        run: npm install -g @anthropic-ai/claude-code
+      - name: review
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          STEWARD_RC_MODEL: "sonnet"
+          STEWARD_RC_TIMEOUT: "3600"
+          ST_CLAUDE_ARGS: "--dangerously-skip-permissions"
+        run: python .steward/review.py

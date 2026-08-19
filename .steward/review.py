@@ -193,6 +193,30 @@ def _launch_remote_control(prompt: str):
             bf.write(prompt)
     except Exception:
         return (None, None)
+    # A fresh CI HOME makes `claude` run its FIRST-RUN interactive onboarding (theme picker) before any
+    # session starts; with no TTY input it blocks forever and no URL ever surfaces (diagnosed live in CI).
+    # Pre-seed onboarding-complete so it goes straight to the remote-control session. lastOnboardingVersion
+    # is set absurdly high so it never re-triggers regardless of the installed claude version. Fail-soft.
+    try:
+        _home = os.path.expanduser("~")
+        _cj = os.path.join(_home, ".claude.json")
+        _existing = {}
+        if os.path.exists(_cj):
+            try:
+                _existing = json.load(open(_cj))
+            except Exception:
+                _existing = {}
+        _existing.update({"hasCompletedOnboarding": True, "lastOnboardingVersion": "99.0.0",
+                          "bypassPermissionsModeAccepted": True})
+        with open(_cj, "w") as _f:
+            json.dump(_existing, _f)
+        os.makedirs(os.path.join(_home, ".claude"), exist_ok=True)
+        _sp = os.path.join(_home, ".claude", "settings.json")
+        if not os.path.exists(_sp):
+            with open(_sp, "w") as _f:
+                json.dump({"theme": "dark"}, _f)
+    except Exception:
+        pass
     pointer = ("Read STEWARD-REVIEW.md in full — it is your morning-review brief. Then walk me through "
                "each decision, one at a time; do not summarise it back.")
     log = os.path.join(HERE, "_rc_session.log")

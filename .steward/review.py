@@ -173,19 +173,14 @@ def _append_summary(text: str) -> None:
     print(text)
 
 
-def _launch_remote_control(prompt: str) -> str | None:
-    """OPT-IN, token-gated: auto-start a remote-control claude session and return its claude.ai/code URL
-    so the URL appears in the digest directly. The session runs HERE (this runner has the checkout it
-    reads) and is drivable from the phone; it is bounded by STEWARD_RC_TIMEOUT so the job cannot hold a
-    runner. Fail-soft: no token / no claude / no URL → None, and the caller falls back to the phone-drive
-    section above (which always works). Requires CLAUDE_CODE_OAUTH_TOKEN (claude.ai auth).
-
-    NOT validated in a live CI run — enabling it needs the OAuth secret, which only the operator can mint
-    via `claude setup-token` (a foreground browser flow). The summary + phone-drive paths are the proven
-    surfaces; this is scaffolding for when the token is set.
-    """
+def _launch_remote_control(prompt: str):
+    """OPT-IN, token-gated: auto-start a remote-control claude session. Returns (url, proc): the
+    claude.ai/code URL to surface + the live process to HOLD (the session runs in THIS runner and dies
+    if the job exits, so main() must wait on it). Fail-soft: no token / no claude / no URL → (None, None),
+    and the caller falls back to the phone-drive section (which always works). Requires
+    CLAUDE_CODE_OAUTH_TOKEN (claude.ai auth)."""
     if not os.environ.get("CLAUDE_CODE_OAUTH_TOKEN") or not shutil.which("claude"):
-        return None
+        return (None, None)
     model = os.environ.get("STEWARD_RC_MODEL", "sonnet")
     try:
         timeout = max(60, int(os.environ.get("STEWARD_RC_TIMEOUT", "3600")))
@@ -197,7 +192,7 @@ def _launch_remote_control(prompt: str) -> str | None:
         with open("STEWARD-REVIEW.md", "w") as bf:
             bf.write(prompt)
     except Exception:
-        return None
+        return (None, None)
     pointer = ("Read STEWARD-REVIEW.md in full — it is your morning-review brief. Then walk me through "
                "each decision, one at a time; do not summarise it back.")
     log = os.path.join(HERE, "_rc_session.log")
@@ -210,7 +205,7 @@ def _launch_remote_control(prompt: str) -> str | None:
                                 stdout=open(log, "w"), stderr=subprocess.STDOUT,
                                 stdin=subprocess.DEVNULL, env=dict(os.environ, IR_ALLOW_NESTED="1"))
     except FileNotFoundError:
-        return None
+        return (None, None)
     url = None
     for _ in range(30):
         time.sleep(3)
@@ -228,17 +223,28 @@ def _launch_remote_control(prompt: str) -> str | None:
             proc.terminate()
         except Exception:
             pass
-        return None
+        return (None, None)
+    return (url, proc)
 
-    def _reap():
-        deadline = time.time() + timeout
-        while time.time() < deadline and proc.poll() is None:
-            time.sleep(15)
-        if proc.poll() is None:
+
+def _emit_session_notice(url: str) -> None:
+    """Live URL delivery: a workflow ::notice:: annotation appears on the run page immediately, so the
+    user (who dispatched this run) sees the session link WHILE it is alive — the rendered summary only
+    appears at job end. No public issue, no extra permission."""
+    print(f"::notice title=Steward review session ready::Drive your review from your phone: {url}")
+
+
+def _hold_session(proc, timeout: int) -> None:
+    """Block until the driven session ends or the budget elapses — the session lives in THIS runner, so
+    the job must stay alive for the user to drive it. Bounded so a runner is never held past the budget."""
+    deadline = time.time() + timeout
+    while time.time() < deadline and proc.poll() is None:
+        time.sleep(15)
+    if proc.poll() is None:
+        try:
             proc.terminate()
-    import threading
-    threading.Thread(target=_reap, daemon=True).start()
-    return url
+        except Exception:
+            pass
 
 def main() -> int:
     token = os.environ.get("GH_TOKEN", "")
@@ -261,10 +267,17 @@ def main() -> int:
         return 0
     # ALWAYS give the token-free phone-drive path (the sound realization of "drive from your phone").
     _append_summary(_phone_drive_section(repo))
-    # OPT-IN: if a claude.ai token is set, ALSO auto-start a session and surface its URL directly.
-    rc_url = _launch_remote_control(render_prompt(repo, pending))
-    if rc_url:
+    # OPT-IN: if a claude.ai token is set, ALSO auto-start a session, deliver its URL live, and HOLD the
+    # runner while the user drives it (the session runs here and would die if the job exited).
+    rc_url, rc_proc = _launch_remote_control(render_prompt(repo, pending))
+    if rc_url and rc_proc:
         _append_summary(f"\n**A session is already live — open it directly:** {rc_url}\n")
+        _emit_session_notice(rc_url)
+        try:
+            _timeout = max(60, int(os.environ.get("STEWARD_RC_TIMEOUT", "3600")))
+        except ValueError:
+            _timeout = 3600
+        _hold_session(rc_proc, _timeout)
     return 0
 
 
@@ -300,7 +313,7 @@ def _selftest() -> int:
     # remote-control leg is a NO-OP without the claude.ai token (degrades to phone-drive, never errors)
     _tok = os.environ.pop("CLAUDE_CODE_OAUTH_TOKEN", None)
     try:
-        ck(_launch_remote_control("x") is None, "no OAuth token → auto-session leg is a fail-soft no-op")
+        ck(_launch_remote_control("x") == (None, None), "no OAuth token → auto-session leg is a fail-soft no-op")
     finally:
         if _tok is not None:
             os.environ["CLAUDE_CODE_OAUTH_TOKEN"] = _tok

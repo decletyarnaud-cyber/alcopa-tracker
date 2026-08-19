@@ -208,6 +208,14 @@ def _launch_remote_control(prompt: str):
                 _existing = {}
         _existing.update({"hasCompletedOnboarding": True, "lastOnboardingVersion": "99.0.0",
                           "bypassPermissionsModeAccepted": True})
+        # Pre-accept folder trust for THIS checkout, or --remote-control blocks on the "is this a project
+        # you trust?" prompt (the next interactive gate a fresh CI HOME hits — diagnosed live).
+        _ws = os.environ.get("GITHUB_WORKSPACE") or os.getcwd()
+        _projs = _existing.setdefault("projects", {})
+        _entry = _projs.get(_ws, {})
+        _entry.update({"hasTrustDialogAccepted": True, "hasCompletedProjectOnboarding": True,
+                       "projectOnboardingSeenCount": 1})
+        _projs[_ws] = _entry
         with open(_cj, "w") as _f:
             json.dump(_existing, _f)
         os.makedirs(os.path.join(_home, ".claude"), exist_ok=True)

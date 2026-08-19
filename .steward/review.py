@@ -220,6 +220,14 @@ def _launch_remote_control(prompt: str):
             break
     if url is None:
         try:
+            _tail = open(log).read()[-1600:]
+        except Exception:
+            _tail = "(no session log written)"
+        print("::warning title=Steward auto-session::no claude.ai/code URL surfaced in "
+              f"{30*3}s — falling back to the phone-drive path. claude --remote-control output:")
+        print(_tail if _tail.strip() else "(claude --remote-control produced NO output — likely "
+              "remote-control is unavailable in this headless environment)")
+        try:
             proc.terminate()
         except Exception:
             pass

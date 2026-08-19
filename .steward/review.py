@@ -29,6 +29,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
+import shutil
 import subprocess
 import sys
 import time
@@ -146,6 +148,19 @@ def render_prompt(repo: str, pending: list[dict]) -> str:
     )
 
 
+def _phone_drive_section(repo: str) -> str:
+    """The token-free way to DRIVE the review from a phone when the machine is off (Henry's intent).
+    gha delivered the digest here; the user opens Claude's own app on their repo and drives the
+    interactive review — no claude.ai token on the repo, no CI-hosted session, they auth themselves."""
+    return (
+        "\n---\n### 📱 Drive this review from your phone\n\n"
+        f"Open the Claude app (or claude.ai/code) on **{repo}** and say:\n\n"
+        "> _Walk me through my Steward morning review — the findings are on the `steward-state` "
+        "branch. One decision at a time._\n\n"
+        "Claude reads the findings and takes you through each decision — the remote-control review, "
+        "with your machine off.\n")
+
+
 def _append_summary(text: str) -> None:
     p = os.environ.get("GITHUB_STEP_SUMMARY")
     if p:
@@ -159,45 +174,54 @@ def _append_summary(text: str) -> None:
 
 
 def _launch_remote_control(prompt: str) -> str | None:
-    """Start a remote-control claude session seeded with the review prompt; return its claude.ai/code
-    URL (or None). The session KEEPS RUNNING after this returns — the user drives it from claude.ai —
-    up to STEWARD_RC_TIMEOUT. Fail-soft: any launch problem returns None and the caller degrades to
-    summary-only. Requires CLAUDE_CODE_OAUTH_TOKEN (claude.ai auth) in the environment.
+    """OPT-IN, token-gated: auto-start a remote-control claude session and return its claude.ai/code URL
+    so the URL appears in the digest directly. The session runs HERE (this runner has the checkout it
+    reads) and is drivable from the phone; it is bounded by STEWARD_RC_TIMEOUT so the job cannot hold a
+    runner. Fail-soft: no token / no claude / no URL → None, and the caller falls back to the phone-drive
+    section above (which always works). Requires CLAUDE_CODE_OAUTH_TOKEN (claude.ai auth).
 
-    NOTE: this leg runs an interactive claude session in a CI runner. It is guarded by a timeout so the
-    job cannot hold a runner past the budget. It has NOT been validated in a live CI run yet — the local
-    review path (Terminal.app) and the summary delivery above are the proven surfaces.
+    NOT validated in a live CI run — enabling it needs the OAuth secret, which only the operator can mint
+    via `claude setup-token` (a foreground browser flow). The summary + phone-drive paths are the proven
+    surfaces; this is scaffolding for when the token is set.
     """
-    if not os.environ.get("CLAUDE_CODE_OAUTH_TOKEN"):
+    if not os.environ.get("CLAUDE_CODE_OAUTH_TOKEN") or not shutil.which("claude"):
         return None
     model = os.environ.get("STEWARD_RC_MODEL", "sonnet")
     try:
         timeout = max(60, int(os.environ.get("STEWARD_RC_TIMEOUT", "3600")))
     except ValueError:
         timeout = 3600
-    log = os.path.join(HERE, "_rc_session.log")
+    # Seed via a FILE, not the command line: the brief is large and --remote-control is interactive
+    # (a positional prompt, never -p). Write it to the checkout and hand claude a short pointer.
     try:
-        # --remote-control surfaces a claude.ai/code URL and relays the session to the user's phone.
-        # -p seeds the prompt; the process stays alive while the user drives. Detach stdout to a log we
-        # poll for the URL. IR_ALLOW_NESTED guards against a nested-CC false-exit in some environments.
-        env = dict(os.environ, IR_ALLOW_NESTED="1")
-        proc = subprocess.Popen(
-            ["claude", "--remote-control", "--model", model, "-p", prompt],
-            stdout=open(log, "w"), stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, env=env)
+        with open("STEWARD-REVIEW.md", "w") as bf:
+            bf.write(prompt)
+    except Exception:
+        return None
+    pointer = ("Read STEWARD-REVIEW.md in full — it is your morning-review brief. Then walk me through "
+               "each decision, one at a time; do not summarise it back.")
+    log = os.path.join(HERE, "_rc_session.log")
+    # --remote-control (and --cloud) REQUIRE a TTY; GHA steps have none. Allocate a PTY with util-linux
+    # `script` (present on ubuntu-latest). The session surfaces a claude.ai/code URL we poll for.
+    inner = (f"claude --remote-control {shlex.quote(pointer)} --model {shlex.quote(model)} "
+             "--allow-dangerously-skip-permissions")
+    try:
+        proc = subprocess.Popen(["script", "-q", "-c", inner, "/dev/null"],
+                                stdout=open(log, "w"), stderr=subprocess.STDOUT,
+                                stdin=subprocess.DEVNULL, env=dict(os.environ, IR_ALLOW_NESTED="1"))
     except FileNotFoundError:
         return None
-    # Poll the log for the session URL (up to ~90s to register), then let the session run.
     url = None
     for _ in range(30):
         time.sleep(3)
         try:
-            m = re.search(r"https://claude\.ai/code/session_[A-Za-z0-9]+", open(log).read())
+            m = re.search(r"https://claude\.ai/code/[A-Za-z0-9_./-]+", open(log).read())
         except Exception:
             m = None
         if m:
             url = m.group(0)
             break
-        if proc.poll() is not None:      # the CLI exited before surfacing a URL
+        if proc.poll() is not None:
             break
     if url is None:
         try:
@@ -205,7 +229,7 @@ def _launch_remote_control(prompt: str) -> str | None:
         except Exception:
             pass
         return None
-    # Bound the session so the job can't hold the runner forever; the user drives it within this window.
+
     def _reap():
         deadline = time.time() + timeout
         while time.time() < deadline and proc.poll() is None:
@@ -215,7 +239,6 @@ def _launch_remote_control(prompt: str) -> str | None:
     import threading
     threading.Thread(target=_reap, daemon=True).start()
     return url
-
 
 def main() -> int:
     token = os.environ.get("GH_TOKEN", "")
@@ -236,15 +259,12 @@ def main() -> int:
     _append_summary(render_summary(repo, pending))
     if not pending:
         return 0
+    # ALWAYS give the token-free phone-drive path (the sound realization of "drive from your phone").
+    _append_summary(_phone_drive_section(repo))
+    # OPT-IN: if a claude.ai token is set, ALSO auto-start a session and surface its URL directly.
     rc_url = _launch_remote_control(render_prompt(repo, pending))
     if rc_url:
-        _append_summary(f"\n---\n### 📱 Drive this review from your phone\n\n"
-                        f"An interactive Steward session is live — open it on claude.ai/code:\n\n"
-                        f"**{rc_url}**\n\n_(the session stays open for your review window)_\n")
-    else:
-        _append_summary("\n---\n_To drive this review interactively from your phone, set the "
-                        "`CLAUDE_CODE_OAUTH_TOKEN` secret (`claude setup-token`). Without it, the "
-                        "digest above is delivered read-only._\n")
+        _append_summary(f"\n**A session is already live — open it directly:** {rc_url}\n")
     return 0
 
 
@@ -273,10 +293,14 @@ def _selftest() -> int:
     ck('"sig": "a1"' in p and '"sig": "b2"' in p, "prompt carries the findings as JSON")
     ck("one question" in p.lower() or "ONE clear question" in p, "prompt asks one decision at a time")
 
-    # remote-control leg is a NO-OP without the claude.ai token (degrades to summary-only, never errors)
+    ph = _phone_drive_section("owner/repo")
+    ck("owner/repo" in ph and "steward-state" in ph and "phone" in ph.lower(),
+       "phone-drive section names the repo + the branch (token-free drive path)")
+
+    # remote-control leg is a NO-OP without the claude.ai token (degrades to phone-drive, never errors)
     _tok = os.environ.pop("CLAUDE_CODE_OAUTH_TOKEN", None)
     try:
-        ck(_launch_remote_control("x") is None, "no OAuth token → remote-control leg is a fail-soft no-op")
+        ck(_launch_remote_control("x") is None, "no OAuth token → auto-session leg is a fail-soft no-op")
     finally:
         if _tok is not None:
             os.environ["CLAUDE_CODE_OAUTH_TOKEN"] = _tok
@@ -287,7 +311,7 @@ def _selftest() -> int:
             print("  -", x)
         return 1
     print("PASS review: pending-filter · phone summary (counts, recommended option, empty-safe) · "
-          "remote-control prompt (RC contract + findings json) · RC leg fail-soft without a token")
+          "remote-control prompt (RC contract + findings json) · phone-drive section · auto-session fail-soft without a token")
     return 0
 
 

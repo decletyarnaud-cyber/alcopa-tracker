@@ -1,0 +1,4 @@
+The Steward — vendored runner files. Copyright (c) 2026 Henry Declety. All rights reserved.
+These files are proprietary and are vendored into this repository solely so its own CI can run
+The Steward's loop. Their visibility here is licensed hosting by this repository's owner, not a
+grant to you: no right to use, copy, modify, or redistribute these files arises from reading them.

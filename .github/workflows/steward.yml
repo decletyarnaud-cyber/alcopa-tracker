@@ -1,0 +1,95 @@
+name: steward
+
+# GHA-mode Steward loop — RENDERED from the-steward by tools/gha_render.py (docs/68). DO NOT hand-edit in
+# the target repo: the cron comes from the repo's `cadence` tier and the scalars from its config, so the
+# workflow is a pure function of the-steward.json (no second source of truth). Re-render via
+# `tools/gha_vendor.sh <repo>`. One run, two jobs:
+#   watch   — turn a run-log into novel error signatures (deduped vs the steward-state branch), record
+#             them, emit a fan-out matrix.
+#   execute — one job per signal: native-claude repro/fix/verify against this repo's own CI; open a PR
+#             (only when auto_fix), write the result to steward-state.
+# A GITHUB_TOKEN-triggered repository_dispatch can't start another workflow, so we fan out with a job
+# matrix in the same run (no PAT needed).
+
+on:
+  schedule:
+    - cron: "55 3 * * *"          # from cadence tier (docs/68); best-effort (cursor design tolerates drift)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write            # commit steward-state + push fix branches (never main)
+  pull-requests: write       # open PRs
+
+concurrency:
+  group: steward
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8   # a run_cmd that is a SERVER never returns; never burn the 360-min default
+    outputs:
+      has_signals: ${{ steps.watch.outputs.has_signals }}
+      matrix: ${{ steps.watch.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      # LIVE signal: run the app, capture its output as the run-log. Keyless — main() degrades
+      # gracefully without provider secrets; '|| true' keeps the watcher running if it exits non-zero.
+      # `timeout` bounds a run_cmd that turns out to be a SERVER: it would otherwise never return,
+      # and the job would sit until GitHub's 360-min limit producing no signal at all.
+      - name: run (capture live run-log)
+        run: timeout 3m python app.py > run.log 2>&1 || true
+      # Signal source: when the repo has a run_cmd, the steps above ran the app and captured its LIVE output
+      # as run.log (its real errors → signals); otherwise this is a committed run-log fixture (dogfood).
+      - name: watch
+        id: watch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python .steward/watch.py run.log
+
+  execute:
+    needs: watch
+    if: needs.watch.outputs.has_signals == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.watch.outputs.matrix) }}
+    steps:
+      - name: check inference credential
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::No inference credential (CLAUDE_CODE_OAUTH_TOKEN empty/unset). Run 'claude setup-token' in the FOREGROUND (it opens a browser; it cannot be backgrounded), copy the printed token, then: gh secret set CLAUDE_CODE_OAUTH_TOKEN -R decletyarnaud-cyber/alcopa-tracker"
+            exit 1
+          fi
+          echo "inference credential present"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: install claude CLI
+        run: npm install -g @anthropic-ai/claude-code
+      - name: execute
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # API lane / economy lane (inferroute): the gate above accepts ANTHROPIC_API_KEY, so it has
+          # to reach the agent too -- otherwise the check passes and `claude` then finds no credential.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          STEWARD_SIG: ${{ matrix.sig }}
+          STEWARD_SIGNATURE: ${{ matrix.signature }}
+          STEWARD_SAMPLE: ${{ matrix.sample }}
+          STEWARD_TEST_CMD: ""
+          STEWARD_AUTO_FIX: "1"   # 1 → fix routes open a PR; 0 → diagnosis-only (docs/68 auto_fix)
+          # ephemeral sandboxed runner: let the investigate/fix agents edit + run tests headlessly
+          ST_CLAUDE_ARGS: "--dangerously-skip-permissions"
+        run: python .steward/execute.py

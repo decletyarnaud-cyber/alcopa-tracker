@@ -42,7 +42,7 @@ jobs:
       # `timeout` bounds a run_cmd that turns out to be a SERVER: it would otherwise never return,
       # and the job would sit until GitHub's 360-min limit producing no signal at all.
       - name: run (capture live run-log)
-        run: timeout 3m python app.py > run.log 2>&1 || true
+        run: timeout 3m python -c 'import app; app.scheduled_scrape()' > run.log 2>&1 || true
       # Signal source: when the repo has a run_cmd, the steps above ran the app and captured its LIVE output
       # as run.log (its real errors → signals); otherwise this is a committed run-log fixture (dogfood).
       - name: watch
